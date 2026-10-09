@@ -37,7 +37,7 @@ PostgreSQL « catalogue public »   table catalog
 | PostgreSQL (source et cible) | `postgres:18.6` |
 | Kafka KRaft ×3 | `apache/kafka:4.3.1` |
 | Kafka Connect + Debezium 3.7 | `quay.io/debezium/connect:3.7.0.Final` |
-| SeaTunnel (Zeta local) | `expose/seatunnel:3.0.0`, construite depuis `seatunnel/` sur `apache/seatunnel:3.0.0` |
+| SeaTunnel (Zeta local) | `expose/seatunnel:3.0.0` : `apache/seatunnel:3.0.0` avec le pilote PostgreSQL remplacé par 42.7.5 |
 | Interface web Kafka | `kafbat/kafka-ui:v1.5.0` |
 
 Les cinq images de base sont disponibles en arm64 (vérifié le 9 octobre 2026 sur MacBook Pro M1 Pro)
@@ -57,7 +57,7 @@ dans `seances/`, avec une fiche (notion, commandes, prédictions à écrire, que
 ```
 seances/            une fiche par étape du parcours
   00-images/        séance zéro : images, test de fumée Kafka + Kafbat UI
-seatunnel/          image SeaTunnel de la démo (connecteurs Kafka et JDBC, pilote PostgreSQL)
+seatunnel/          image SeaTunnel de la démo (pilote PostgreSQL à jour)
 ```
 
 À venir au fil des séances : `compose.yaml` (pipeline complet), `sql/` (schémas source et cible),
