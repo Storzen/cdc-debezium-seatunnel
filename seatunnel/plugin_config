@@ -1,0 +1,4 @@
+--connectors-v2--
+connector-kafka
+connector-jdbc
+--end--

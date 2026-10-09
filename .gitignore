@@ -1,0 +1,12 @@
+# Secrets locaux (le compose lira .env ; seul .env.example est versionné)
+.env
+
+# Binaires téléchargés au build
+*.jar
+
+# Clips de secours de la démo : trop lourds pour git, partagés à part (clé USB, drive)
+clips/
+
+# Système
+.DS_Store
+Thumbs.db

@@ -1,0 +1,6 @@
+# La camarade travaille sous Windows : on force LF dans le dépôt et sur disque,
+# sinon les scripts shell et les fichiers SQL montés dans les conteneurs Linux cassent (\r).
+* text=auto eol=lf
+*.jar binary
+*.mp4 binary
+*.png binary
