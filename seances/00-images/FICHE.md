@@ -140,3 +140,28 @@ Repli si le sink JDBC pose problème avec ce pilote à la séance 4 : utiliser d
 
 Quatre points de la liste « À tester au montage » demandent un pipeline en marche et se lèvent plus tard :
 les noms `KAFKA_DEFAULT_REPLICATION_FACTOR` et `KAFKA_MIN_INSYNC_REPLICAS` (séance 5), la forme du sink et son comportement sur un update (séance 4), le bloc `schema` de la source (séance 4), la reprise par les offsets du groupe (séance 4).
+
+## À retenir
+
+### Pour comprendre
+
+1. **Une image Docker** est un système de fichiers figé et une commande de démarrage. Le tag (`18.6`, `3.7.0.Final`) fige la version : la démo de demain sera identique à celle d'aujourd'hui. Un même tag peut contenir plusieurs variantes de processeur (arm64, amd64) ; Docker prend celle de la machine. Une variante étrangère tournerait en émulation, lente et parfois instable : c'est pourquoi on a vérifié `arm64`.
+2. **Un conteneur est jetable, les données ne le sont pas.** Tout ce qui n'est pas dans un volume disparaît avec `--rm` ou `down -v`. PostgreSQL 18 range ses données dans `/var/lib/postgresql/18/docker` : le volume se monte sur `/var/lib/postgresql`. Les tutoriels écrits pour les versions précédentes montent `/var/lib/postgresql/data` et perdraient les données ici.
+3. **Le WAL (Write-Ahead Log)** est le journal où PostgreSQL écrit chaque changement avant de l'appliquer aux tables, pour pouvoir se relever d'une panne. `wal_level` règle ce qu'il y note : `replica` (défaut) suffit pour une copie physique de toute la base ; `logical` ajoute de quoi reconstituer chaque changement ligne par ligne. C'est la condition du CDC : sans `logical`, Debezium n'a rien à lire.
+4. **Kafka Connect est une plateforme, un connecteur est un plugin.** L'image Debezium en contient 13 ; c'est `connector.class` dans la configuration qui décide lequel tourne.
+5. **Un message Kafka** porte une clé, une valeur, une partition, un offset (sa position dans la partition, à partir de 0) et un horodatage. La clé choisit la partition, et l'ordre n'est garanti qu'à l'intérieur d'une partition : même clé, même partition, ordre préservé. Debezium prendra la clé primaire de la ligne comme clé.
+6. **Un job SeaTunnel** se décrit dans un fichier : source → transform → sink. Zeta l'exécute. En mode local (`-m local`), Zeta crée un mini-cluster Hazelcast le temps du job et le détruit à la fin. C'est pour cela que la reprise après redémarrage ne viendra pas de Zeta mais des offsets enregistrés dans Kafka (séance 4).
+
+### Ce qu'on peut conclure
+
+- **La pile figée tourne sur la machine de démo**, sans aucun repli : PostgreSQL 18.6, Kafka 4.3.1, Debezium 3.7.0, SeaTunnel 3.0.0, Kafbat UI v1.5.0.
+- **La documentation lue n'est pas une preuve.** La recherche affirmait que l'image SeaTunnel ne contenait que fake et console ; une commande `ls` a montré le contraire. Chaque affirmation de la démo doit reposer sur une commande exécutée, et c'est un argument à l'oral : *we checked it on the machine*.
+- **Décision prise** : l'image SeaTunnel se limite à remplacer un pilote PostgreSQL de 2022 touché par une faille connue (CVE-2024-1597). C'est la démarche normale en production : surveiller ses dépendances, pas seulement son propre code.
+- **Ce qui n'est pas prouvé** : chaque brique démarre seule, mais aucune n'a encore parlé à une autre. Le pipeline lui-même reste entièrement à démontrer (séances 1 à 5).
+- **Point d'attention pour la démo** : Kafbat UI affiche la version du broker « Unknown ». Réponse prête : *the UI doesn't recognise Kafka 4.3 yet; the broker runs 4.3.1*.
+
+### Questions qu'on peut te poser
+
+- *Why Docker for the demo?* — Reproducible: pinned versions, the same stack on any machine, started and reset with one command.
+- *Why not the latest tag?* — `latest` moves; a pinned tag guarantees that the rehearsed demo is the one we run.
+- *What does `wal_level=logical` cost?* — A slightly larger WAL, since PostgreSQL logs extra information per row. That's the price of change data capture.

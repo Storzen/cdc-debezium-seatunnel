@@ -52,7 +52,8 @@ et publiées aussi en amd64 pour les machines Windows / Intel (non testé de not
 ## Organisation du dépôt
 
 Le pipeline se monte brique par brique, dans le sens de la donnée. Chaque séance a son dossier
-dans `seances/`, avec une fiche (notion, commandes, prédictions à écrire, questions de fin).
+dans `seances/`, avec une fiche (notion, commandes, prédictions à écrire, résultats observés)
+qui se termine par une section « À retenir » : ce qu'il faut comprendre, ce qu'on peut conclure, et les questions probables.
 
 ```
 seances/            une fiche par étape du parcours
