@@ -68,7 +68,7 @@ seatunnel/          image SeaTunnel de la démo (pilote PostgreSQL à jour)
 
 | Séance | Notion | État |
 |---|---|---|
-| 0 | Images et test de fumée | en cours (images téléchargées, arm64 vérifié) |
+| 0 | Images et test de fumée | terminée le 9 oct. (Mac) |
 | 1 | PostgreSQL : WAL, slot de réplication, publication | |
 | 2 | Kafka à 1 nœud : topic, partition, offset, groupe de consommateurs | |
 | 3 | Debezium : snapshot initial, `op` / `before` / `after` | |

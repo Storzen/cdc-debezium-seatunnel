@@ -1,5 +1,7 @@
 # Séance zéro : les images démarrent-elles sur la machine ?
 
+**Terminée le 9 octobre 2026 sur le Mac : aucun repli nécessaire.**
+
 Durée : environ 1 heure. Aucune notion à apprendre ici, aucune prédiction à écrire.
 But : lever les doutes laissés par la recherche sur les versions **avant** de construire dessus, et décider d'un repli tout de suite si une image pose problème.
 
@@ -105,7 +107,7 @@ Résultat :
 - Job d'exemple (FakeSource → Console) terminé à l'état `FINISHED` en 2 s : 32 lignes lues, 32 écrites, 0 échec. Zeta tourne en mode local sur le Mac.
 - Au passage, les logs montrent que Zeta repose sur Hazelcast (grille de données en mémoire) et ouvre une API REST sur le port 8080 du conteneur.
 
-## 6. Construire l'image SeaTunnel de la démo
+## 6. Construire l'image SeaTunnel de la démo ✅ (9 octobre 2026)
 
 Constat de l'étape 5 et de `ls lib` : l'image officielle a déjà les connecteurs Kafka et JDBC, et un pilote `postgresql-42.4.3.jar`.
 Ce pilote date de 2022 et est touché par la CVE-2024-1597 (injection SQL, seulement en mode `preferQueryMode=simple`, que nous n'utilisons pas).
@@ -117,6 +119,8 @@ docker run --rm expose/seatunnel:3.0.0 sh -c 'ls lib | grep -i postgres'
 ```
 
 Attendu : une seule ligne, `postgresql-42.7.5.jar`. Le build ne télécharge qu'un fichier d'environ 1 Mo : quelques secondes.
+
+Résultat : build en 2,4 s, `lib/` ne contient plus que `postgresql-42.7.5.jar`.
 
 Repli si le sink JDBC pose problème avec ce pilote à la séance 4 : utiliser directement `apache/seatunnel:3.0.0` (pilote d'origine), en le disant à l'oral.
 
@@ -130,7 +134,7 @@ Repli si le sink JDBC pose problème avec ce pilote à la séance 4 : utiliser d
 | Kafbat UI : cluster en ligne, message produit et relu | oui ; version affichée « Unknown » |
 | Dossier de travail de SeaTunnel, connecteurs d'origine | `/opt/seatunnel` ; ~120 connecteurs dont kafka, jdbc, cdc-postgres |
 | Job d'exemple SeaTunnel terminé | oui, FINISHED, 32 lues / 32 écrites / 0 échec |
-| Image `expose/seatunnel:3.0.0` : pilote 42.7.5 seul présent | |
+| Image `expose/seatunnel:3.0.0` : pilote 42.7.5 seul présent | oui |
 
 ## Ce que cette séance ne peut pas lever
 
