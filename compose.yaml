@@ -1,0 +1,28 @@
+# Pipeline CDC de la démo. Construit brique par brique, une séance à la fois.
+# Séance 1 : la base source seule.
+name: cdc-demo
+
+services:
+  # Registre interne de l'agence : la source du flux.
+  pg-source:
+    image: postgres:18.6
+    # wal_level=logical : PostgreSQL écrit dans son journal (WAL) de quoi
+    # reconstituer chaque changement ligne par ligne. Condition du CDC.
+    command: ["postgres", "-c", "wal_level=logical"]
+    environment:
+      POSTGRES_DB: registre
+      POSTGRES_PASSWORD: ${SOURCE_DB_PASSWORD:?définir SOURCE_DB_PASSWORD dans .env (voir .env.example)}
+    volumes:
+      # Depuis PostgreSQL 18, les données sont dans /var/lib/postgresql/18/docker :
+      # on monte le dossier parent (constat de la séance zéro).
+      - pg-source-data:/var/lib/postgresql
+      # Scripts SQL exécutés une seule fois, au premier démarrage (volume vide), par ordre alphabétique.
+      - ./sql/source:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d registre"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pg-source-data:
