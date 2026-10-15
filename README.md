@@ -56,12 +56,16 @@ dans `seances/`, avec une fiche (notion, commandes, prédictions à écrire, ré
 qui se termine par une section « À retenir » : ce qu'il faut comprendre, ce qu'on peut conclure, et les questions probables.
 
 ```
+compose.yaml        le pipeline, complété à chaque séance
+.env.example        variables à copier dans .env (mots de passe)
 seances/            une fiche par étape du parcours
   00-images/        séance zéro : images, test de fumée Kafka + Kafbat UI
+  01-postgresql/    WAL, LSN, slot de réplication, publication, REPLICA IDENTITY
+sql/source/         schéma et données initiales du registre interne (table plots)
 seatunnel/          image SeaTunnel de la démo (pilote PostgreSQL à jour)
 ```
 
-À venir au fil des séances : `compose.yaml` (pipeline complet), `sql/` (schémas source et cible),
+À venir au fil des séances : `sql/target/` (catalogue public),
 `connect/` (configuration du connecteur Debezium), `seatunnel/jobs/` (job de streaming),
 `scripts/` (scènes de la démo numérotées, contrôle avant passage, remise à zéro), `simulator/`.
 
@@ -70,7 +74,7 @@ seatunnel/          image SeaTunnel de la démo (pilote PostgreSQL à jour)
 | Séance | Notion | État |
 |---|---|---|
 | 0 | Images et test de fumée | terminée le 9 oct. (Mac) |
-| 1 | PostgreSQL : WAL, slot de réplication, publication | |
+| 1 | PostgreSQL : WAL, slot de réplication, publication | prête |
 | 2 | Kafka à 1 nœud : topic, partition, offset, groupe de consommateurs | |
 | 3 | Debezium : snapshot initial, `op` / `before` / `after` | |
 | 4 | SeaTunnel : source-transform-sink, upsert par clé | |
