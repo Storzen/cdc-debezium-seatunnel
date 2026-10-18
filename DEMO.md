@@ -1,5 +1,9 @@
 # Antisèche de la démo (à garder ouverte)
 
+## Validé le 18 octobre 2026, 23 h
+
+Les 4 scènes passent du premier coup ; délai mesuré de 0,23 à 0,76 s ; pendant la scène d, l'ISR passe à 3,1 puis revient à 1,2,3.
+
 ## Avant de monter (10 min avant)
 
 1. `./scripts/up.sh` : remise à zéro, environ 3 min.
@@ -32,6 +36,8 @@
 - **Et Spark ou Flink ?** Flink CDC est l'alternative la plus proche : il fait la capture et le traitement dans un même moteur, mais au prix d'un cluster Flink à opérer. Spark Structured Streaming lit Kafka mais ne capte pas lui-même le journal. Zeta, le moteur de SeaTunnel, est plus léger et pensé pour la synchronisation, pas pour le calcul.
 - **Que se passe-t-il si SeaTunnel tombe ?** Les événements restent dans Kafka. Au redémarrage, le job relit depuis les offsets de son groupe de consommateurs, et l'upsert par clé absorbe les doublons.
 - **Si Debezium tombe ?** Le slot de réplication retient le WAL non lu. Debezium reprend à son dernier LSN confirmé, stocké dans le topic `connect_offsets`. Le revers : un slot abandonné fait grossir le disque de la source, donc il faut le surveiller.
+- **Le nom du propriétaire et le prix plancher sont dans Kafka ?** Oui (scène b), et c'est un choix : Kafka est interne, et d'autres lecteurs internes (la comptabilité, par exemple) peuvent en avoir besoin. Le filtrage se fait à la livraison, par SeaTunnel. Pour que ces colonnes ne quittent jamais la base, Debezium peut les exclure dès la source (`column.exclude.list`).
+- **Pourquoi le nouveau terrain a l'id 6 et pas 5 ?** L'id 5 appartenait au terrain supprimé à la scène c ; une colonne `IDENTITY` ne réutilise jamais une valeur.
 - **Exactly-once ?** Nous sommes en *at-least-once* (au moins une fois), rendu sûr par l'idempotence de l'upsert par clé.
 - **Ordre des événements ?** Un topic à 1 partition : l'ordre est garanti. Avec plusieurs partitions, il l'est par clé (même terrain → même partition).
 - **Pourquoi pas des triggers ou une double écriture dans l'application ?** Les triggers alourdissent chaque transaction de la source. La double écriture laisse deux systèmes incohérents si l'une des deux échoue. Le journal, lui, est déjà écrit et fait foi.
