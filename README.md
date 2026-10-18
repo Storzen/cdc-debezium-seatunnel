@@ -49,6 +49,20 @@ et publiées aussi en amd64 pour les machines Windows / Intel (non testé de not
 - Environ 6 à 8 Go de RAM libres pour le pipeline complet (8 conteneurs).
 - Sous Windows : rien à régler pour les fins de ligne, `.gitattributes` force LF (indispensable aux scripts lus par les conteneurs Linux).
 
+## Lancer la démo (mode rush)
+
+```bash
+cp .env.example .env          # puis changer les deux mots de passe (lettres et chiffres)
+./scripts/up.sh               # remise à zéro + démarrage ordonné, 2 à 3 min
+./scripts/check.sh            # contrôle avant passage, avec mesure du délai
+./scripts/watch.sh catalog    # dans un 2e terminal : le catalogue en direct
+./scripts/scene-a-price.sh    # baisse de prix
+./scripts/scene-b-event.sh    # l'événement brut (+ Kafbat UI : http://localhost:8080)
+./scripts/scene-c-delete.sh   # le DELETE propagé
+./scripts/scene-d-broker.sh   # facultatif : arrêt d'un broker
+./scripts/down.sh             # libérer la mémoire
+```
+
 ## Organisation du dépôt
 
 Le pipeline se monte brique par brique, dans le sens de la donnée. Chaque séance a son dossier

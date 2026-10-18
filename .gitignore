@@ -10,3 +10,6 @@ clips/
 # Système
 .DS_Store
 Thumbs.db
+
+# Fichiers rendus par scripts/up.sh (contiennent des mots de passe)
+.run/

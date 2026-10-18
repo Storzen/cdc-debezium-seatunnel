@@ -1,22 +1,44 @@
-# Pipeline CDC de la démo. Construit brique par brique, une séance à la fois.
-# Séance 1 : la base source seule.
+# Pipeline CDC complet de la démo.
+#   pg-source → Debezium (Kafka Connect) → Kafka ×3 → SeaTunnel → pg-target
+# Démarrage ordonné : ./scripts/up.sh (ne pas lancer « docker compose up » seul,
+# le connecteur et le job SeaTunnel ont besoin d'un ordre précis).
 name: cdc-demo
+
+x-kafka-common: &kafka-common
+  image: apache/kafka:4.3.1
+  restart: unless-stopped
+  environment: &kafka-env
+    KAFKA_PROCESS_ROLES: 'broker,controller'
+    KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
+    KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093'
+    KAFKA_LISTENERS: 'PLAINTEXT://:19092,CONTROLLER://:9093'
+    KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+    KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+    # Même identifiant de cluster sur les 3 nœuds.
+    CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+    # Recommandations de production : 3 copies, et une écriture n'est validée
+    # que si 2 copies au moins l'ont reçue.
+    KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+    KAFKA_MIN_INSYNC_REPLICAS: 2
+    KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+    KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+    KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+    KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 3
+    KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 2
+    KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    KAFKA_HEAP_OPTS: '-Xms512m -Xmx512m'
 
 services:
   # Registre interne de l'agence : la source du flux.
   pg-source:
     image: postgres:18.6
-    # wal_level=logical : PostgreSQL écrit dans son journal (WAL) de quoi
-    # reconstituer chaque changement ligne par ligne. Condition du CDC.
+    # wal_level=logical : condition du CDC (séance 1).
     command: ["postgres", "-c", "wal_level=logical"]
     environment:
       POSTGRES_DB: registre
       POSTGRES_PASSWORD: ${SOURCE_DB_PASSWORD:?définir SOURCE_DB_PASSWORD dans .env (voir .env.example)}
     volumes:
-      # Depuis PostgreSQL 18, les données sont dans /var/lib/postgresql/18/docker :
-      # on monte le dossier parent (constat de la séance zéro).
       - pg-source-data:/var/lib/postgresql
-      # Scripts SQL exécutés une seule fois, au premier démarrage (volume vide), par ordre alphabétique.
       - ./sql/source:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d registre"]
@@ -24,5 +46,86 @@ services:
       timeout: 3s
       retries: 10
 
+  # Catalogue public : ce que verrait le site web.
+  pg-target:
+    image: postgres:18.6
+    environment:
+      POSTGRES_DB: catalogue
+      POSTGRES_PASSWORD: ${TARGET_DB_PASSWORD:?définir TARGET_DB_PASSWORD dans .env (voir .env.example)}
+    volumes:
+      - pg-target-data:/var/lib/postgresql
+      - ./sql/target:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d catalogue"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Kafka : 3 nœuds KRaft en mode combiné (broker + controller sur chaque nœud).
+  kafka-1:
+    <<: *kafka-common
+    hostname: kafka-1
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 1
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-1:19092'
+  kafka-2:
+    <<: *kafka-common
+    hostname: kafka-2
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 2
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-2:19092'
+  kafka-3:
+    <<: *kafka-common
+    hostname: kafka-3
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 3
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-3:19092'
+
+  # Kafka Connect, avec le connecteur Debezium PostgreSQL déjà installé dans l'image.
+  connect:
+    image: quay.io/debezium/connect:3.7.0.Final
+    depends_on: [kafka-1, kafka-2, kafka-3]
+    restart: unless-stopped
+    environment:
+      BOOTSTRAP_SERVERS: 'kafka-1:19092,kafka-2:19092,kafka-3:19092'
+      GROUP_ID: 'connect-cluster'
+      CONFIG_STORAGE_TOPIC: 'connect_configs'
+      OFFSET_STORAGE_TOPIC: 'connect_offsets'
+      STATUS_STORAGE_TOPIC: 'connect_statuses'
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3
+      HEAP_OPTS: '-Xms512m -Xmx1g'
+    ports:
+      - "8083:8083"
+
+  # Moteur Zeta en mode local. Démarré en dernier par scripts/up.sh,
+  # une fois le topic créé par Debezium.
+  seatunnel:
+    build: ./seatunnel
+    image: expose/seatunnel:3.0.0
+    restart: unless-stopped
+    command: ["./bin/seatunnel.sh", "-m", "local", "-c", "/jobs/plots-to-catalog.conf"]
+    volumes:
+      # Job rendu par scripts/up.sh à partir du modèle (mot de passe injecté, non versionné).
+      - ./.run:/jobs:ro
+    profiles: ["deliver"]
+
+  # Interface web : brokers, topics, réplicas, messages, Kafka Connect.
+  kafka-ui:
+    image: kafbat/kafka-ui:v1.5.0
+    depends_on: [kafka-1, kafka-2, kafka-3]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: cdc-demo
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: 'kafka-1:19092,kafka-2:19092,kafka-3:19092'
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: 'http://connect:8083'
+    ports:
+      - "8080:8080"
+
 volumes:
   pg-source-data:
+  pg-target-data:

@@ -1,0 +1,74 @@
+# Job de streaming : Kafka (événements Debezium) → colonnes publiques → catalogue.
+# Modèle : scripts/up.sh le rend dans .run/ en injectant le mot de passe.
+env {
+  parallelism = 1
+  job.mode = "STREAMING"
+  # Point de reprise toutes les 2 s : valide les offsets Kafka et vide le sink.
+  checkpoint.interval = 2000
+}
+
+source {
+  Kafka {
+    plugin_output = "kafka_src"
+    bootstrap.servers = "kafka-1:19092,kafka-2:19092,kafka-3:19092"
+    topic = "registre.public.plots"
+    consumer.group = "seatunnel-catalog"
+    start_mode = "earliest"
+    format = debezium_json
+    # Doit valoir comme value.converter.schemas.enable côté connecteur (false).
+    debezium_record_include_schema = false
+    schema = {
+      fields {
+        id = "int"
+        reference = "string"
+        city = "string"
+        district = "string"
+        area_m2 = "int"
+        price_fcfa = "bigint"
+        has_land_title = "boolean"
+        status = "string"
+        owner_name = "string"
+        floor_price_fcfa = "bigint"
+        updated_at = "string"
+      }
+    }
+  }
+}
+
+transform {
+  # Seules les colonnes listées sortent : owner_name et floor_price_fcfa restent internes.
+  FieldMapper {
+    plugin_input = "kafka_src"
+    plugin_output = "public_cols"
+    field_mapper = {
+      id = id
+      reference = reference
+      city = city
+      district = district
+      area_m2 = area_m2
+      price_fcfa = price_fcfa
+      has_land_title = has_land_title
+      status = status
+      updated_at = source_updated_at
+    }
+  }
+}
+
+sink {
+  Jdbc {
+    plugin_input = "public_cols"
+    url = "jdbc:postgresql://pg-target:5432/catalogue"
+    driver = "org.postgresql.Driver"
+    username = "postgres"
+    password = "@@TARGET_DB_PASSWORD@@"
+    generate_sink_sql = true
+    database = "catalogue"
+    table = "public.catalog"
+    # Écriture par clé : insert/update → upsert, delete → delete. Les rejeux sont sans effet.
+    primary_keys = ["id"]
+    enable_upsert = true
+    batch_size = 1
+    schema_save_mode = "ERROR_WHEN_SCHEMA_NOT_EXIST"
+    data_save_mode = "APPEND_DATA"
+  }
+}
