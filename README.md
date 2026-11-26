@@ -1,11 +1,10 @@
-# CDC demo: Debezium + Apache SeaTunnel
+# CDC pipeline: Debezium and Apache SeaTunnel
 
-Demo for a Big Data class talk (INGE 5 ISI, IUST, 2026-27) on
-**Acquisition / Ingestion: CDC & pipeline integration with Debezium and Apache SeaTunnel**, in **streaming** mode.
+A streaming change data capture (CDC) pipeline. Every INSERT, UPDATE and DELETE in a PostgreSQL database reaches a second database within a few seconds, through Debezium, Kafka and SeaTunnel.
 
-Use case: the catalog of available plots of land at a real estate agency
-(TANK'IMMO context, **all data is fictional**). Every INSERT, UPDATE and DELETE
-in the internal registry must reach the public catalog within a few seconds.
+Use case: the catalog of plots of land at a real estate agency. An internal registry holds every plot, and a public catalog shows only the plots for sale with their public columns. All data is fictional.
+
+Built for a Big Data course at Saint Jean Ingénieur, 2026. I prepared it as a live demo for a class talk on data acquisition and ingestion.
 
 ## The pipeline
 
@@ -41,7 +40,7 @@ Alongside: Kafbat UI (brokers, topics, replicas, messages, Kafka Connect).
 | Kafka web UI | `kafbat/kafka-ui:v1.5.0` |
 
 All five base images ship for arm64 (checked on October 9, 2026 on a MacBook Pro M1 Pro)
-and are also published for amd64, for Windows / Intel machines (not tested on our side).
+and are also published for amd64, for Windows / Intel machines (not tested).
 
 ## Requirements
 
