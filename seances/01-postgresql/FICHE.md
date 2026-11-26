@@ -38,6 +38,12 @@ alias psrc='docker compose exec -T pg-source psql -U postgres -d registre'
 
 `-T` désactive le terminal interactif : indispensable pour envoyer plusieurs requêtes d'un coup (blocs `<<'SQL'` plus bas).
 
+Depuis le montage du pipeline complet, `sql/source/02-cdc.sql` passe `plots` en `REPLICA IDENTITY FULL` dès le premier démarrage, parce que le sink JDBC de SeaTunnel refuse un DELETE dont « before » est vide. Pour observer le comportement par défaut aux étapes 4 à 6, remets d'abord la table à son réglage d'origine (l'étape 7 le changera de nouveau) :
+
+```bash
+psrc -c "alter table plots replica identity default;"
+```
+
 Lis `compose.yaml` et `sql/source/01-schema.sql` : tu dois pouvoir dire à quoi sert chaque ligne. Questions à te poser : pourquoi `wal_level` est passé en `command` et pas en variable d'environnement ? Que se passe-t-il si on modifie `01-schema.sql` et qu'on relance `docker compose up` ?
 
 ## 1. Le décodage logique sans `wal_level=logical`
@@ -217,7 +223,7 @@ psrc -c "drop publication dbz_publication;"
 docker compose down -v
 ```
 
-`down -v` efface le volume : à la séance 3, la base repartira d'un état propre, avec la publication, `REPLICA IDENTITY FULL` et l'utilisateur dédié à Debezium créés par un second script SQL, écrit à partir de tes observations.
+`down -v` efface le volume : au prochain démarrage, la base repart d'un état propre. `sql/source/02-cdc.sql` y remet `REPLICA IDENTITY FULL`, et Debezium crée lui-même sa publication `dbz_plots` (`publication.autocreate.mode: filtered`, dans `connect/registre-plots.json.template`) et son slot `debezium_plots`.
 
 ## Explication en anglais (1 minute, sans notes)
 
