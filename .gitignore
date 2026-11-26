@@ -13,3 +13,6 @@ Thumbs.db
 
 # Fichiers rendus par scripts/up.sh (contiennent des mots de passe)
 .run/
+
+# Configuration locale des outils de code
+.codex/
