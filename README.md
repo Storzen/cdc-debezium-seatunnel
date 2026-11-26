@@ -1,101 +1,105 @@
-# Démo CDC : Debezium + Apache SeaTunnel
+# CDC demo: Debezium + Apache SeaTunnel
 
-Démo de l'exposé de Big Data (INGE 5 ISI, IUST, 2026-27) sur le thème
-**Acquisition / Ingestion — CDC & pipeline integration : Debezium ; Apache SeaTunnel**, en mode **flux**.
+Demo for a Big Data class talk (INGE 5 ISI, IUST, 2026-27) on
+**Acquisition / Ingestion: CDC & pipeline integration with Debezium and Apache SeaTunnel**, in **streaming** mode.
 
-Cas d'application : le catalogue des terrains disponibles d'une agence immobilière
-(contexte TANK'IMMO, **données entièrement fictives**). Chaque INSERT, UPDATE et DELETE
-du registre interne doit atteindre le catalogue public en quelques secondes.
+Use case: the catalog of available plots of land at a real estate agency
+(TANK'IMMO context, **all data is fictional**). Every INSERT, UPDATE and DELETE
+in the internal registry must reach the public catalog within a few seconds.
 
-## Le pipeline
+## The pipeline
 
 ```
-script de simulation
+simulation script
         │ INSERT / UPDATE / DELETE
         ▼
-PostgreSQL « registre interne »   table plots, wal_level=logical
-        │ journal de transactions (WAL), décodage pgoutput
+PostgreSQL "internal registry"   table plots, wal_level=logical
+        │ write-ahead log (WAL), pgoutput decoding
         ▼
-Debezium, connecteur source dans Kafka Connect (mode distribué, 1 worker)
-        │ un événement par changement (op, before, after)
+Debezium, source connector in Kafka Connect (distributed mode, 1 worker)
+        │ one event per change (op, before, after)
         ▼
-Kafka : 3 nœuds KRaft en mode combiné, topics répliqués ×3, min.insync.replicas=2
-        │ format debezium_json
+Kafka: 3 KRaft nodes in combined mode, topics replicated ×3, min.insync.replicas=2
+        │ debezium_json format
         ▼
-SeaTunnel, moteur Zeta en mode local : FieldMapper ne garde que les colonnes publiques
-        │ sink JDBC, upsert et delete par clé primaire
+SeaTunnel, Zeta engine in local mode: FieldMapper keeps only the public columns
+        │ JDBC sink, upsert and delete by primary key
         ▼
-PostgreSQL « catalogue public »   table catalog
+PostgreSQL "public catalog"   table catalog
 
-À côté : Kafbat UI (brokers, topics, réplicas, messages, Kafka Connect).
+Alongside: Kafbat UI (brokers, topics, replicas, messages, Kafka Connect).
 ```
 
-## Versions figées
+## Pinned versions
 
-| Composant | Image |
+| Component | Image |
 |---|---|
-| PostgreSQL (source et cible) | `postgres:18.6` |
+| PostgreSQL (source and target) | `postgres:18.6` |
 | Kafka KRaft ×3 | `apache/kafka:4.3.1` |
 | Kafka Connect + Debezium 3.7 | `quay.io/debezium/connect:3.7.0.Final` |
-| SeaTunnel (Zeta local) | `expose/seatunnel:3.0.0` : `apache/seatunnel:3.0.0` avec le pilote PostgreSQL remplacé par 42.7.5 |
-| Interface web Kafka | `kafbat/kafka-ui:v1.5.0` |
+| SeaTunnel (local Zeta) | `expose/seatunnel:3.0.0`: `apache/seatunnel:3.0.0` with the PostgreSQL driver replaced by 42.7.5 |
+| Kafka web UI | `kafbat/kafka-ui:v1.5.0` |
 
-Les cinq images de base sont disponibles en arm64 (vérifié le 9 octobre 2026 sur MacBook Pro M1 Pro)
-et publiées aussi en amd64 pour les machines Windows / Intel (non testé de notre côté).
+All five base images ship for arm64 (checked on October 9, 2026 on a MacBook Pro M1 Pro)
+and are also published for amd64, for Windows / Intel machines (not tested on our side).
 
-## Prérequis
+## Requirements
 
-- Docker avec Compose v2 : OrbStack ou Docker Desktop sur macOS, Docker Desktop (backend WSL 2) sous Windows.
-- Environ 6 à 8 Go de RAM libres pour le pipeline complet (8 conteneurs).
-- Sous Windows : rien à régler pour les fins de ligne, `.gitattributes` force LF (indispensable aux scripts lus par les conteneurs Linux).
+- Docker with Compose v2: OrbStack or Docker Desktop on macOS, Docker Desktop (WSL 2 backend) on Windows.
+- About 6 to 8 GB of free RAM for the full pipeline (8 containers).
+- On Windows, line endings need no setup. `.gitattributes` forces LF, which the scripts read by the Linux containers require.
 
-## Lancer la démo (mode rush)
+## Running the demo (rush mode)
 
 ```bash
-cp .env.example .env          # puis changer les deux mots de passe (lettres et chiffres)
-./scripts/up.sh               # remise à zéro + démarrage ordonné, 2 à 3 min
-./scripts/check.sh            # contrôle avant passage, avec mesure du délai
-./scripts/watch.sh catalog    # dans un 2e terminal : le catalogue en direct
-./scripts/scene-a-price.sh    # baisse de prix
-./scripts/scene-b-event.sh    # l'événement brut (+ Kafbat UI : http://localhost:8080)
-./scripts/scene-c-delete.sh   # le DELETE propagé
-./scripts/scene-d-broker.sh   # facultatif : arrêt d'un broker
-./scripts/down.sh             # libérer la mémoire
+cp .env.example .env          # then change both passwords (letters and digits only)
+./scripts/up.sh               # reset + ordered startup, 2 to 3 min
+./scripts/check.sh            # pre-show check, with latency measurement
+./scripts/watch.sh catalog    # in a 2nd terminal: the live catalog
+./scripts/scene-a-price.sh    # price drop
+./scripts/scene-b-event.sh    # the raw event (+ Kafbat UI: http://localhost:8080)
+./scripts/scene-c-delete.sh   # the DELETE propagated
+./scripts/scene-d-broker.sh   # optional: stop one broker
+./scripts/down.sh             # free the memory
 ```
 
-## Organisation du dépôt
+## Repository layout
 
-Le pipeline se monte brique par brique, dans le sens de la donnée. Chaque séance a son dossier
-dans `seances/`, avec une fiche (notion, commandes, prédictions à écrire, résultats observés)
-qui se termine par une section « À retenir » : ce qu'il faut comprendre, ce qu'on peut conclure, et les questions probables.
+The pipeline is built one component at a time, following the data. Each session has its own folder
+in `seances/`, with a sheet (concept, commands, predictions to write down, observed results)
+that ends with a "Takeaways" section: what to understand, what can be concluded, and the likely questions.
 
 ```
-compose.yaml        le pipeline, complété à chaque séance
-.env.example        variables à copier dans .env (mots de passe)
-seances/            une fiche par étape du parcours
-  00-images/        séance zéro : images, test de fumée Kafka + Kafbat UI
-  01-postgresql/    WAL, LSN, slot de réplication, publication, REPLICA IDENTITY
-sql/source/         schéma et données initiales du registre interne (table plots)
-seatunnel/          image SeaTunnel de la démo (pilote PostgreSQL à jour)
+compose.yaml        the full pipeline
+.env.example        variables to copy into .env (passwords)
+seances/            one sheet per step of the course
+  00-images/        session zero: images, Kafka + Kafbat UI smoke test
+  01-postgresql/    WAL, LSN, replication slot, publication, REPLICA IDENTITY
+sql/source/         schema and seed data of the internal registry (table plots)
+sql/target/         public catalog schema (table catalog)
+connect/            Debezium connector configuration
+seatunnel/          demo SeaTunnel image (updated PostgreSQL driver)
+  jobs/             streaming job from Kafka to the catalog
+scripts/            startup, pre-show check, demo scenes, teardown
+DEMO.md             cheat sheet for the live demo
 ```
 
-À venir au fil des séances : `sql/target/` (catalogue public),
-`connect/` (configuration du connecteur Debezium), `seatunnel/jobs/` (job de streaming),
-`scripts/` (scènes de la démo numérotées, contrôle avant passage, remise à zéro), `simulator/`.
+## Progress
 
-## Avancement
+The full pipeline already runs in rush mode: all four demo scenes passed on October 18, 2026,
+with a measured delay of 0.23 to 0.76 s (see `DEMO.md`). The sheets for sessions 2 to 5 are still to be written.
 
-| Séance | Notion | État |
+| Session | Concept | Status |
 |---|---|---|
-| 0 | Images et test de fumée | terminée le 9 oct. (Mac) |
-| 1 | PostgreSQL : WAL, slot de réplication, publication | prête |
-| 2 | Kafka à 1 nœud : topic, partition, offset, groupe de consommateurs | |
-| 3 | Debezium : snapshot initial, `op` / `before` / `after` | |
-| 4 | SeaTunnel : source-transform-sink, upsert par clé | |
-| 5 | Kafka à 3 nœuds : réplication, quorum, panne d'un broker | |
+| 0 | Images and smoke test | done on Oct 9 (Mac) |
+| 1 | PostgreSQL: WAL, replication slot, publication | ready |
+| 2 | Single-node Kafka: topic, partition, offset, consumer group | |
+| 3 | Debezium: initial snapshot, `op` / `before` / `after` | |
+| 4 | SeaTunnel: source-transform-sink, upsert by key | |
+| 5 | 3-node Kafka: replication, quorum, broker failure | |
 
-## Règles du dépôt
+## Repository rules
 
-- Aucun secret versionné : les mots de passe vivent dans `.env` (ignoré par git), un `.env.example` documente les variables.
-- Les clips vidéo de secours (`clips/`) ne sont pas versionnés.
-- Données fictives uniquement.
+- No secrets in git: passwords live in `.env` (ignored by git), and `.env.example` documents the variables.
+- Backup video clips (`clips/`) are not versioned.
+- Fictional data only.
